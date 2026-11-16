@@ -1,0 +1,37 @@
+# Render Blueprint. New > Blueprint > pick this repo. The database lives on Supabase,
+# so there is no `databases:` block; DATABASE_URL is entered in the dashboard.
+services:
+  - type: web
+    name: homa-backend
+    runtime: python
+    plan: free            # free instances sleep when idle (first request ~30-60s); use starter for always-on
+    region: oregon        # pick the region closest to your Supabase project
+    buildCommand: pip install -r requirements.txt
+    # Migrations + first-admin bootstrap run on every start (idempotent). Render's
+    # preDeployCommand is paid-only, so this keeps the free plan working.
+    startCommand: flask --app run db upgrade && flask --app run bootstrap-admin && gunicorn run:app --workers 2 --threads 4 --timeout 60 --bind 0.0.0.0:$PORT
+    healthCheckPath: /api/v1.0/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: APP_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: AUTH_ENFORCED
+        value: "true"
+      # No mailer yet: POST /user returns a temporary password to the super admin over HTTPS.
+      # Set to false once invites are emailed.
+      - key: EXPOSE_TEMP_PASSWORD
+        value: "true"
+      - key: DATABASE_URL          # Supabase connection string, see README "Deploying"
+        sync: false
+      - key: CORS_ORIGINS          # your frontend origin(s), comma separated, no trailing slash
+        sync: false
+      - key: BOOTSTRAP_ADMIN_EMAIL
+        sync: false
+      - key: BOOTSTRAP_ADMIN_PASSWORD   # 12+ chars; only used if that user does not exist yet
+        sync: false
