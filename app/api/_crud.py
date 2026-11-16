@@ -19,7 +19,7 @@ def _no_nulls(model, values):
 
 def register_crud(bp, path, model, *, pk, label, spec, read_roles, write_roles,
                   filters=None, order=None, before_save=None, in_use=None, patch_guard=None,
-                  patch_roles=None, search=None, allow_delete=True):
+                  patch_roles=None, search=None, after_update=None, allow_delete=True):
     """Add GET list / POST / GET one / PATCH / DELETE routes for `model` under `path`.
 
     filters:      {query_param: caster} equality filters for the list route.
@@ -27,6 +27,8 @@ def register_crud(bp, path, model, *, pk, label, spec, read_roles, write_roles,
     in_use:       fn(obj) -> message when the row is referenced and must not be deleted.
     patch_guard:  fn(values) -> may raise 403 for field-level permission rules.
     patch_roles:  roles allowed to PATCH (default: write_roles); pair with patch_guard.
+    after_update: fn(obj, before, values) run after a PATCH is applied, in the same transaction;
+                  `before` holds the old value of each changed field.
     search:       column expressions matched (case-insensitive contains) by `?q=` on the list route.
     """
     name = model.__tablename__
@@ -82,7 +84,10 @@ def register_crud(bp, path, model, *, pk, label, spec, read_roles, write_roles,
             patch_guard(values)
         if before_save:
             before_save(tid, values, obj)
+        before = {k: getattr(obj, k) for k in values}
         apply(obj, values)
+        if after_update:
+            after_update(obj, before, values)
         try:
             db.session.commit()
         except IntegrityError:

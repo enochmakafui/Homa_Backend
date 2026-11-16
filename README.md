@@ -90,6 +90,31 @@ referenced (property with rooms, guest with reservations, ...) return 409 on DEL
 `paid_amount` is editable on a reservation by front office/admin until the billing step adds payments.
 The checkout-clean housekeeping task is added in step 6.
 
+## Step 6: housekeeping and maintenance
+
+| Endpoint | Roles |
+|---|---|
+| `GET/POST /housekeeping/tasks` (filters `status,room_id,assigned_to,priority,task_type,mine=true`; sorted urgent first), `GET/PATCH /<id>`, `DELETE /<id>` (admin; pending/cancelled only) | tenant_admin, housekeeping |
+| `POST /housekeeping/tasks/<id>/assign` `{assigned_to}`, `/start`, `/complete` `{actual_duration?, notes?, force?}`, `/cancel` | tenant_admin, housekeeping |
+| `POST /housekeeping/tasks/<id>/checklist` `{description}`, `PATCH .../checklist/<item_id>` `{is_completed, notes}` | tenant_admin, housekeeping |
+| `GET /maintenance-requests` (filters `status,room_id,category,priority,assigned_to`), `GET /<id>` | tenant_admin, housekeeping, front_office |
+| `POST /maintenance-requests` (reporter is taken from the token; status always starts `reported`) | every tenant role |
+| `PATCH /<id>`, `POST /<id>/assign`, `/start`, `/complete` `{actual_cost?, notes?}`, `/cancel` | tenant_admin, housekeeping |
+
+Rules:
+- A room entering `cleaning` (by check-out, or `PATCH /rooms/<id>` with `status:"cleaning"`) queues one
+  `checkout_clean` task: 45 min, medium priority, notes "Post-checkout cleaning required". Never duplicated
+  while one is still open.
+- Completing a cleaning/deep_clean/checkout_clean task sets a `cleaning` room back to `available` and stamps
+  `last_cleaned`, unless another cleaning task for that room is still open. Inspection/maintenance tasks never
+  change the room.
+- Task flow: `pending -> in_progress -> completed` (or `cancelled`). Completing is blocked while checklist
+  items are open unless `force:true`. `actual_duration` defaults to minutes since `/start`.
+- Housekeeping users can only act on work assigned to them or unassigned (starting unassigned work claims it).
+  `assigned_to` must be an active housekeeping/tenant_admin user of the same tenant.
+- Completing a maintenance request stamps the room's `last_maintenance`; it does not change the room's status.
+  Completed/cancelled requests are frozen.
+
 ## Implemented (build-order steps 1-4)
 
 | Endpoint | Notes |

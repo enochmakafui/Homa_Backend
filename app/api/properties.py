@@ -5,6 +5,7 @@ from ..models import (
     PROPERTY_TYPES, ROOM_CATEGORIES, ROOM_STATUSES, FloorLayout, Guest, Property, Reservation,
     Room, RoomType,
 )
+from ..services.housekeeping import queue_checkout_clean
 from ..utils import ApiError
 from ..utils.auth import current_claims
 from ..utils.resource import (
@@ -72,8 +73,15 @@ def _room_patch_guard(values):
         raise ApiError("Only an administrator can change a room's structure", 403)
 
 
+def _room_after_update(room, before, values):
+    # A room moving into `cleaning` (e.g. housekeeping flags it after a guest leaves) queues
+    # its post-checkout cleaning task, exactly like check-out does.
+    if values.get("status") == "cleaning" and before.get("status") != "cleaning":
+        queue_checkout_clean(room, created_by=current_claims().get("sub"))
+
+
 register_crud(
-    bp, "/rooms", Room, pk="room_id", label="Room",
+    bp, "/rooms", Room, pk="room_id", label="Room", after_update=_room_after_update,
     spec={
         "property_id": (v_str(36), True), "type_id": (v_str(36), True), "number": (v_str(20), True),
         "floor": (v_int(0, 200), False), "status": (v_enum(*ROOM_STATUSES), False),

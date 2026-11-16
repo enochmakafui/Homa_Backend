@@ -5,6 +5,7 @@ from flask import Blueprint, request
 
 from ..extensions import db
 from ..models import BLOCKING_STATUSES, Guest, Reservation, Room
+from ..services.housekeeping import queue_checkout_clean
 from ..utils import ApiError, ok
 from ..utils.audit import audit
 from ..utils.auth import current_claims, resolve_tenant_id, roles_required
@@ -223,9 +224,9 @@ def check_out(reservation_id):
         raise ApiError(f"Outstanding balance of {res.balance:.2f}. Settle it, or send force=true to override", 409)
     room = res.room
     res.status = "checked_out"
-    # The housekeeping step will turn this status change into a checkout-clean task.
     room.status = "cleaning"
     room.current_guest_id = None
+    queue_checkout_clean(room, created_by=current_claims().get("sub"))
     audit("check_out", "reservation", f"Room {room.number}" + (f"; forced with balance {res.balance:.2f}" if res.balance > 0 else ""),
           user=_actor(), severity="warning" if res.balance > 0 else "info", commit=False)
     db.session.commit()

@@ -7,12 +7,14 @@ from ..extensions import db
 def register_blueprints(app, prefix):
     from .auth import bp as auth_bp
     from .guests import bp as guests_bp
+    from .housekeeping import bp as housekeeping_bp
     from .properties import bp as properties_bp
     from .reservations import bp as reservations_bp
     from .tenants import bp as tenants_bp
     from .users import bp as users_bp
 
-    for bp in (auth_bp, tenants_bp, users_bp, properties_bp, guests_bp, reservations_bp, health_bp):
+    for bp in (auth_bp, tenants_bp, users_bp, properties_bp, guests_bp, reservations_bp,
+               housekeeping_bp, health_bp):
         # A url_prefix passed here replaces the blueprint's own, so join them.
         app.register_blueprint(bp, url_prefix=prefix + (bp.url_prefix or ""))
     # Unversioned liveness probe (kept from the original starter).

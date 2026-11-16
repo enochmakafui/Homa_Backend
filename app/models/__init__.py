@@ -158,3 +158,7 @@ from .hotel import (  # noqa: E402,F401
     BLOCKING_STATUSES, PROPERTY_TYPES, RESERVATION_STATUSES, ROOM_CATEGORIES, ROOM_STATUSES,
     FloorLayout, Guest, Property, Reservation, Room, RoomType,
 )
+from .housekeeping import (  # noqa: E402,F401
+    CLEANING_TASK_TYPES, MAINTENANCE_CATEGORIES, OPEN_MAINTENANCE_STATUSES, OPEN_TASK_STATUSES,
+    PRIORITIES, TASK_TYPES, ChecklistItem, HousekeepingTask, MaintenanceRequest,
+)
